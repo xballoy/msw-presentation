@@ -1,0 +1,19 @@
+{
+  "name": "msw-presentation",
+  "version": "1.0.0",
+  "description": "MSW Presentation",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xballoy/msw-presentation.git"
+  },
+  "author": "Xavier Balloy",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/xballoy/msw-presentation/issues"
+  },
+  "homepage": "https://github.com/xballoy/msw-presentation#readme"
+}

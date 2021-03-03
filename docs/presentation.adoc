@@ -1,0 +1,234 @@
+= Stop mocking fetch
+:author: Xavier Balloy
+:date: 2021-03-04
+:revealjsdir: revealjs
+:revealjs_theme: black
+:customcss: css/presentation.css
+:revealjs_hash: true
+:highlightjsdir: highlightjs
+:source-highlighter: highlightjs
+:revealjs_width: '100%'
+:revealjs_height: '100%'
+
+== Agenda
+
+1. Why stop mocking `fetch`
+2. Mock Service Worker, alias msw
+3. How to use MSW
+4. Demo
+5. Questions
+
+== Why stop mocking fetch
+
+=== What's wrong with this test?
+
+[source,javascript]
+----
+jest.mock('../../utils/api-client')
+
+test('clicking "confirm" submits payment', async () => {
+  const shoppingCart = buildShoppingCart()
+  render(<Checkout shoppingCart={shoppingCart} />)
+  client.mockResolvedValueOnce(() => ({success: true}))
+
+  userEvent.click(screen.getByRole('button', {name: /confirm/i}))
+
+  expect(client).toHaveBeenCalledWith('checkout', {data: shoppingCart})
+  expect(client).toHaveBeenCalledTimes(1)
+})
+----
+
+[.notes]
+--
+* We mock the client, so we cannot be sure that it is correctly used.
+* We mocked it to prevent API call
+* How do we know the API didn't change (response or how to use it)?
+* Let's mock fetch to have a lower level feedback loop.
+--
+
+=== Let's mock fetch
+
+[source,javascript]
+----
+beforeAll(() => jest.spyOn(window, 'fetch'))
+
+test('clicking "confirm" submits payment', async () => {
+  const shoppingCart = buildShoppingCart()
+  render(<Checkout shoppingCart={shoppingCart} />)
+
+  window.fetch.mockResolvedValueOnce({
+    ok: true,
+    json: async () => ({success: true}),
+  })
+
+  userEvent.click(screen.getByRole('button', {name: /confirm/i}))
+
+  expect(window.fetch).toHaveBeenCalledWith(
+    '/checkout',
+    expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify(shoppingCart),
+    }),
+  )
+  expect(window.fetch).toHaveBeenCalledTimes(1)
+
+})
+----
+
+[.notes]
+--
+* That's better, but we do not assert everything on `fetch` (headers, auth...)
+* We end up re-implementing your entire backend... everywhere in the tests
+--
+
+== Mock Service Worker, alias msw
+
+* Mock by intercepting requests on the network level.
+* Seamlessly reuse the same mock definition for testing, development, and debugging.
+* Supports REST API and GraphQL API
+
+=== Benefits
+
+Works in your tests, but you can also use it in the browser:
+
+* If the endpoint isn't ready
+* If the endpoint is broken
+* If your internet connection is slow or non-existent
+
+== How to use MSW
+
+=== Install
+
+[source,shell script]
+----
+npm install msw --save-dev
+# or
+yarn add msw --dev
+----
+
+=== Mocking REST API
+
+[source,shell script]
+----
+mkdir src/mocks
+touch src/mocks/handlers.js
+----
+
+[source,javascript]
+----
+// src/mocks/handlers.js
+import { rest } from 'msw'
+
+export const handlers = [
+  rest.post('https://myapi.test/checkout', (req, res, ctx) => {
+    return res(
+      ctx.status(200),
+      ctx.json({
+        success: true,
+      }),
+    )
+  }),
+]
+----
+
+[.notes]
+--
+* We mock the client, so we cannot be sure that it is correctly used.
+* We mocked it to prevent API call
+* How do we know the API didn't change (response or how to use it)?
+* Let's mock fetch to have a lower level feedback loop.
+* We need the https://myapi.test in Node test
+--
+
+=== Integrate in the browser (1/2)
+
+[source,shell script]
+----
+npx msw init public/ --save
+touch src/mocks/browser.js
+----
+
+[source,javascript]
+----
+// src/mocks/browser.js
+import { setupWorker } from 'msw'
+import { handlers } from './handlers'
+
+// This configures a Service Worker with the given request handlers.
+export const worker = setupWorker(...handlers)
+----
+
+=== Integrate in the browser (2/2)
+
+[source,javascript]
+----
+// src/index.js
+import Vue from 'vue';
+import App from './App.vue';
+
+if (process.env.NODE_ENV === 'development') {
+  const { worker } = require('./mocks/browser');
+
+  worker.start();
+}
+
+new Vue({
+  render: (h) => h(App),
+}).$mount('#app');
+----
+
+[source]
+----
+> [MSW] Mocking enabled
+----
+
+=== Integrate in Node (1/2)
+
+[source,shell script]
+----
+touch src/mocks/server.js
+----
+
+[source,javascript]
+----
+// src/mocks/server.js
+import { setupServer } from 'msw/node'
+import { handlers } from './handlers'
+
+// This configures a request mocking server with the given request handlers.
+export const server = setupServer(...handlers)
+----
+
+=== Integrate in Node (2/2)
+
+[source,javascript]
+----
+// src/setupTests.js
+import { server } from './mocks/server.js'
+// Establish API mocking before all tests.
+beforeAll(() => server.listen())
+
+// Reset any request handlers that we may add during the tests,
+// so they don't affect other tests.
+afterEach(() => server.resetHandlers())
+
+// Clean up after the tests are finished.
+afterAll(() => server.close())
+----
+
+[source,javascript]
+----
+// jest.config.js
+module.exports = {
+  setupFilesAfterEnv: ['./jest.setup.js'],
+}
+----
+
+== Demo
+
+image::img/demo.gif[]
+
+== Source
+
+* https://kentcdodds.com/blog/stop-mocking-fetch[Stop mocking fetch]
+* https://mswjs.io/docs/getting-started/install[MSW step by step setup]

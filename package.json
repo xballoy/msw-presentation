@@ -1,10 +1,9 @@
 {
   "name": "msw-presentation",
   "version": "1.0.0",
-  "description": "MSW Presentation",
-  "main": "index.js",
+  "description": "Presentation on why you should stop mocking fetch and use MSW instead.",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node build.js docs/presentation.adoc"
   },
   "repository": {
     "type": "git",
@@ -15,5 +14,11 @@
   "bugs": {
     "url": "https://github.com/xballoy/msw-presentation/issues"
   },
-  "homepage": "https://github.com/xballoy/msw-presentation#readme"
+  "homepage": "https://github.com/xballoy/msw-presentation#readme",
+  "dependencies": {
+    "@asciidoctor/core": "2.2.1",
+    "@asciidoctor/reveal.js": "4.1.0",
+    "asciidoctor": "2.2.1",
+    "browser-sync": "2.26.14"
+  }
 }
